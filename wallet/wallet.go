@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/asdine/storm"
 	"gopkg.in/mgo.v2/bson"
@@ -16,8 +17,8 @@ type Currency struct {
 
 // Wallet holds data for
 type Wallet struct {
-	ID       bson.ObjectId `json:"id" storm:"id"`
-	Currency Currency      `json:"currency"`
+	ID         bson.ObjectId `json:"id" storm:"id"`
+	Currencies []Currency    `json:"currencies"`
 }
 
 const (
@@ -48,6 +49,8 @@ func All() ([]Wallet, error) {
 // One returns a single wallet record from the database
 func One(id bson.ObjectId) (*Wallet, error) {
 	db, err := storm.Open(dbPath)
+	fmt.Print("here")
+
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +88,7 @@ func Delete(id bson.ObjectId) error {
 
 // Save updates or creates a given record in the database
 func (wallet *Wallet) Save() error {
-	if err := wallet.validate(); err != nil {
+	if err := wallet.validateWalletFields(); err != nil {
 		return err
 	}
 	db, err := storm.Open(dbPath)
@@ -99,14 +102,15 @@ func (wallet *Wallet) Save() error {
 }
 
 // Validate if entered wallet record contains valid data
-func (wallet *Wallet) validate() error {
-	if wallet.Currency.Name == "" {
+func (wallet *Wallet) validateWalletFields() error {
+	if wallet.ID.Hex() == "" || len(wallet.Currencies) == 0 {
 		return ErrRecordInvalid
 	}
 
-	// TODO REFACTOR FOR CURRENCY STRUCT AND WHEN CALLING RESERVE FUNCTION
-	if wallet.Currency.Balance < 0 {
-		return ErrRecordInvalid
+	for _, c := range wallet.Currencies {
+		if c.Name == "" {
+			return ErrRecordInvalid
+		}
 	}
 
 	return nil

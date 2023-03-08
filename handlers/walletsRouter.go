@@ -10,7 +10,6 @@ import (
 // WalletsRouter handles the wallets route
 func WalletsRouter(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimSuffix(r.URL.Path, "/")
-
 	if path == "/wallets" {
 		switch r.Method {
 		case http.MethodGet:
@@ -26,10 +25,15 @@ func WalletsRouter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if an id is present after the path
-	path = strings.TrimPrefix(path, "/wallets/")
+	if strings.Contains(path, "/reserve/") {
+		path = strings.TrimPrefix(path, "/wallets/reserve/")
+	} else {
+		path = strings.TrimPrefix(path, "/wallets/")
+	}
 
 	if !bson.IsObjectIdHex(path) {
 		postError(w, http.StatusNotFound)
+		return
 	}
 
 	id := bson.ObjectIdHex(path)
@@ -41,7 +45,7 @@ func WalletsRouter(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPut:
 		return
 	case http.MethodPatch:
-
+		walletsReserveCurrency(w, r, id)
 		return
 	case http.MethodDelete:
 		return
