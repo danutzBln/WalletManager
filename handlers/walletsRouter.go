@@ -45,9 +45,14 @@ func WalletsRouter(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPut:
 		return
 	case http.MethodPatch:
-		walletsReserveCurrency(w, r, id)
+		if strings.Contains(r.URL.Path, "/reserve/") {
+			walletsReserveCurrency(w, r, id)
+		} else {
+			walletsPatchOne(w, r, id)
+		}
 		return
 	case http.MethodDelete:
+		walletsDeleteOne(w, r, id)
 		return
 	default:
 		postError(w, http.StatusMethodNotAllowed)

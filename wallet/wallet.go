@@ -2,17 +2,23 @@ package wallet
 
 import (
 	"errors"
-	"fmt"
+	"time"
 
 	"github.com/asdine/storm"
 	"gopkg.in/mgo.v2/bson"
 )
 
+type Reservation struct {
+	Amount          int       `json:"balance"`
+	ReservationTime time.Time `json:"reservationtime"`
+}
+
 type Currency struct {
-	Name      string `json:"name"`
-	Balance   int    `json:"balance"`
-	Reserved  int    `json:"reserved"`
-	Available int    `json:"available"`
+	Name         string        `json:"name"`
+	Balance      int           `json:"balance"`
+	Reservations []Reservation `json:"reservations"`
+	Reserved     int           `json:"reserved"`
+	Available    int           `json:"available"`
 }
 
 // Wallet holds data for
@@ -49,7 +55,6 @@ func All() ([]Wallet, error) {
 // One returns a single wallet record from the database
 func One(id bson.ObjectId) (*Wallet, error) {
 	db, err := storm.Open(dbPath)
-	fmt.Print("here")
 
 	if err != nil {
 		return nil, err
