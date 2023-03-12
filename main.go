@@ -11,7 +11,8 @@ import (
 func main() {
 	http.HandleFunc("/wallets", handlers.WalletsRouter)
 	http.HandleFunc("/wallets/", handlers.WalletsRouter)
-	http.HandleFunc("/wallets/reserve", handlers.WalletsRouter)
+	http.HandleFunc("/reserve", handlers.ReservationsRouter) // check if this is needed
+	http.HandleFunc("/reserve/", handlers.ReservationsRouter)
 	http.HandleFunc("/", handlers.RootHandler)
 
 	err := http.ListenAndServe("localhost:3000", nil)
