@@ -4,7 +4,7 @@ import (
 	"WalletManager/wallet"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -60,7 +60,7 @@ func reservationsCreateOne(w http.ResponseWriter, r *http.Request, id bson.Objec
 		return
 	}
 
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
