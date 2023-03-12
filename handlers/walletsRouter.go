@@ -25,12 +25,7 @@ func WalletsRouter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if an id is present after the path
-	if strings.Contains(path, "/reserve/") {
-		path = strings.TrimPrefix(path, "/wallets/reserve/")
-	} else {
-		path = strings.TrimPrefix(path, "/wallets/")
-	}
-
+	path = strings.TrimPrefix(path, "/wallets/")
 	if !bson.IsObjectIdHex(path) {
 		postError(w, http.StatusNotFound)
 		return
@@ -43,13 +38,10 @@ func WalletsRouter(w http.ResponseWriter, r *http.Request) {
 		walletsGetOne(w, r, id)
 		return
 	case http.MethodPut:
+		walletsPostOne(w, r)
 		return
 	case http.MethodPatch:
-		if strings.Contains(r.URL.Path, "/reserve/") {
-			walletsReserveCurrency(w, r, id)
-		} else {
-			walletsPatchOne(w, r, id)
-		}
+		walletsAddCurrency(w, r, id)
 		return
 	case http.MethodDelete:
 		walletsDeleteOne(w, r, id)

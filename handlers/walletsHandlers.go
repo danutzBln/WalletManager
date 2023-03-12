@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"time"
 
 	"WalletManager/wallet"
 
@@ -16,14 +15,15 @@ import (
 
 // Encode a request body to a wallet struct
 func bodyToWallet(r *http.Request, wallet *wallet.Wallet) error {
+	if r == nil {
+		return errors.New("a request is required")
+	}
 	if r.Body == nil {
 		return errors.New("request body is empty")
 	}
-
 	if wallet == nil {
 		return errors.New("a wallet is required")
 	}
-
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return err
@@ -87,42 +87,15 @@ func walletsPostOne(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-// Patch a wallet with different currency elements
-func walletsPatchOne(w http.ResponseWriter, r *http.Request, id bson.ObjectId) {
-	fetchedWallet, err := wallet.One(id)
-	if err != nil {
-		if err == storm.ErrNotFound {
-			postError(w, http.StatusNotFound)
-			return
-		}
-		postError(w, http.StatusInternalServerError)
-		return
-	}
-	err = bodyToWallet(r, fetchedWallet)
-	if err != nil {
-		postError(w, http.StatusBadRequest)
-		return
-	}
-	fetchedWallet.ID = id
-	err = fetchedWallet.Save()
-	if err != nil {
-		if err == wallet.ErrRecordInvalid {
-			postError(w, http.StatusBadRequest)
-		} else {
-			postError(w, http.StatusInternalServerError)
-		}
-		return
-	}
-	postBodyResponse(w, http.StatusOK, jsonResponse{"wallet": fetchedWallet})
-}
-
-type ReservationUpdate struct {
+type NewCurrencyElement struct {
 	Name   string `json:"name"`
 	Amount *int   `json:"amount"`
 }
 
-// Reserve an amount of a given currency from a wallet
-func walletsReserveCurrency(w http.ResponseWriter, r *http.Request, id bson.ObjectId) {
+// Patch a wallet with different currency elements
+// TODO if name exists, increment balance and available amount with update.amount
+// if not, add new currency
+func walletsAddCurrency(w http.ResponseWriter, r *http.Request, id bson.ObjectId) {
 	fetchedWallet, err := wallet.One(id)
 	if err != nil {
 		if err == storm.ErrNotFound {
@@ -138,7 +111,7 @@ func walletsReserveCurrency(w http.ResponseWriter, r *http.Request, id bson.Obje
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var update ReservationUpdate
+	var update NewCurrencyElement
 	json.Unmarshal(body, &update)
 
 	missing := true
@@ -147,30 +120,19 @@ func walletsReserveCurrency(w http.ResponseWriter, r *http.Request, id bson.Obje
 	for i, currency := range fetchedWallet.Currencies {
 		if currency.Name == update.Name {
 			missing = false
-			if update.Amount != nil && fetchedWallet.Currencies[i].Available-*update.Amount >= 0 {
-				newReservation := wallet.Reservation{
-					Amount:          *update.Amount,
-					ReservationTime: time.Now(),
-				}
-				fetchedWallet.Currencies[i].Reservations = append(fetchedWallet.Currencies[i].Reservations, newReservation)
-				fetchedWallet.Currencies[i].Reserved += *update.Amount
-				fetchedWallet.Currencies[i].Available = fetchedWallet.Currencies[i].Balance - fetchedWallet.Currencies[i].Reserved
-			} else {
-				err := fmt.Errorf("not enough funds available to spend for currency %s - %d", fetchedWallet.Currencies[i].Name, fetchedWallet.Currencies[i].Available)
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
+			fetchedWallet.Currencies[i].Balance += *update.Amount
+			fetchedWallet.Currencies[i].Available += *update.Amount
 			break
 		}
 	}
 
+	// Add new currency if it does not already exist in the wallet
 	if missing {
-		err := fmt.Errorf("wallet does not contain currency %s", update.Name)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		newCurrency := wallet.Currency{Name: update.Name, Balance: *update.Amount, Reserved: 0, Available: *update.Amount}
+		fetchedWallet.Currencies = append(fetchedWallet.Currencies, newCurrency)
 	}
 
-	// Save the updated wallet to the database if enough funds are available
+	// Save the updated wallet to the database with new currency element
 	err = fetchedWallet.Save()
 	if err != nil {
 		if err == wallet.ErrRecordInvalid {
@@ -180,6 +142,7 @@ func walletsReserveCurrency(w http.ResponseWriter, r *http.Request, id bson.Obje
 		}
 		return
 	}
+
 	postBodyResponse(w, http.StatusOK, jsonResponse{"wallet": fetchedWallet})
 }
 
